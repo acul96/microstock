@@ -1,320 +1,361 @@
-// src/Main.tsx
-import React from "react";
-import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
+import React from 'react';
+import {
+  AbsoluteFill,
+  interpolate,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from 'remotion';
 
-/* ==========================================================================
-   COLOR PALETTE — flat, premium, no gradients / shadows / filters
-   ========================================================================== */
+// ==========================================
+// NEO-CYBERPUNK PREMIUM COLOR PALETTE
+// ==========================================
 const COLORS = {
-  balloonBase: "#E8734A",
-  balloonSeam: "#C85A34",
-  balloonCap: "#C85A34",
-  skirt: "#3B3A36",
-  basket: "#8B5E3C",
-  basketDark: "#6E482D",
-  rope: "#5A5A52",
-  cloud: "#FFFFFF",
-  sunCore: "#F4B942",
-  sunRay: "#F4B942",
+  primaryNeon: '#00ffff',     // Electric Cyan
+  secondaryNeon: '#ff0055',   // Cyber Pink
+  accentCore: '#7a00ff',      // Deep Plasma Violet
+  plateLight: '#f1f5f9',      // Armor Plate Utama (Terang)
+  plateDark: '#cbd5e1',       // Armor Plate Bayangan
+  chassisDark: '#1e293b',     // Rangka Mekanikal Dalam
+  strokePremium: '#0f172a',   // Ink Stroke Outline
+  goldAccent: '#f59e0b',      // Sensor Gold
 };
 
-/* ==========================================================================
-   HELPER — convert degrees to an SVG rotate() transform string
-   ========================================================================== */
-const rotateAround = (deg: number, cx: number, cy: number) =>
-  `rotate(${deg} ${cx} ${cy})`;
+const TOTAL_LOOP_FRAMES = 160; 
 
-/* ==========================================================================
-   CLOUD COMPONENT — reusable flat cloud built from overlapping circles
-   ========================================================================== */
-type CloudProps = {
-  x: number;
-  y: number;
-  scale: number;
-};
-
-const Cloud: React.FC<CloudProps> = ({ x, y, scale }) => {
-  return (
-    <g
-      name="cloud"
-      transform={`translate(${x} ${y}) scale(${scale})`}
-    >
-      <ellipse cx={0} cy={0} rx={70} ry={34} fill={COLORS.cloud} />
-      <circle cx={-45} cy={-6} r={30} fill={COLORS.cloud} />
-      <circle cx={-10} cy={-22} r={38} fill={COLORS.cloud} />
-      <circle cx={38} cy={-8} r={28} fill={COLORS.cloud} />
-      <circle cx={62} cy={4} r={20} fill={COLORS.cloud} />
-    </g>
-  );
-};
-
-/* ==========================================================================
-   SUN COMPONENT — flat circle core with rotating rays
-   ========================================================================== */
-type SunProps = {
-  x: number;
-  y: number;
-  rotationDeg: number;
-};
-
-const Sun: React.FC<SunProps> = ({ x, y, rotationDeg }) => {
-  const rayCount = 10;
-  const rays = Array.from({ length: rayCount }, (_, i) => {
-    const angle = (360 / rayCount) * i;
-    return (
-      <line
-        key={`ray-${i}`}
-        x1={0}
-        y1={-95}
-        x2={0}
-        y2={-125}
-        stroke={COLORS.sunRay}
-        strokeWidth={10}
-        strokeLinecap="round"
-        transform={`rotate(${angle} 0 0)`}
-      />
-    );
-  });
-
-  return (
-    <g name="sun" transform={`translate(${x} ${y})`}>
-      <g name="sun-rays" transform={rotateAround(rotationDeg, 0, 0)}>
-        {rays}
-      </g>
-      <circle name="sun-core" cx={0} cy={0} r={78} fill={COLORS.sunCore} />
-    </g>
-  );
-};
-
-/* ==========================================================================
-   MAIN COMPONENT
-   ========================================================================== */
 export const Main: React.FC = () => {
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
+  const { fps } = useVideoConfig();
 
-  // Normalized progress through the loop, 0 -> 1
-  const progress = frame / durationInFrames;
-  const TAU = Math.PI * 2;
+  const loopFrame = frame % TOTAL_LOOP_FRAMES;
 
-  /* ------------------------------------------------------------------------
-     BALLOON + BASKET ANIMATION VALUES (all integer-cycle, seamless loop)
-     ------------------------------------------------------------------------ */
+  // ------------------------------------------
+  // CORE MOTION FORMULAS (4K STABILIZED)
+  // ------------------------------------------
+  const runBobbing = Math.sin((loopFrame / 15) * Math.PI * 2) * 18; 
+  const jumpArc = interpolate(
+    loopFrame,
+    [60, 75, 105, 135, 150], 
+    [0, 30, -220, 0, -10],   
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  const bodyY = loopFrame >= 60 && loopFrame <= 150 ? jumpArc : runBobbing;
 
-  // Whole assembly gently floats up and down — 1 full cycle over the loop
-  const verticalFloat = Math.sin(progress * TAU * 1) * 22;
+  const runTilt = 8 + Math.sin((loopFrame / 15) * Math.PI * 2) * 3; 
+  const jumpTilt = interpolate(
+    loopFrame,
+    [60, 75, 90, 120, 135, 150],
+    [8, 15, -25, 10, 30, 8], 
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  const bodyTilt = loopFrame >= 60 && loopFrame <= 150 ? jumpTilt : runTilt;
 
-  // Balloon envelope subtly wobbles/rotates around its own center
-  const balloonRotation = Math.sin(progress * TAU * 1 + Math.PI / 6) * 1.6;
+  const runSwingFL = Math.sin((loopFrame / 15) * Math.PI * 2) * 50;
+  const runSwingBR = Math.sin((loopFrame / 15) * Math.PI * 2) * 50;
+  const runSwingFR = Math.sin((loopFrame / 15) * Math.PI * 2 + Math.PI) * 50;
+  const runSwingBL = Math.sin((loopFrame / 15) * Math.PI * 2 + Math.PI) * 50;
 
-  // Basket swings like a pendulum, slightly faster than the balloon float,
-  // with a phase offset so the motion feels organic rather than mechanical
-  const basketSwing = Math.sin(progress * TAU * 2 + Math.PI / 4) * 2.8;
+  const jumpLegFL = interpolate(loopFrame, [60, 75, 90, 135, 145, 155], [0, 45, -60, -40, 30, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const jumpLegFR = interpolate(loopFrame, [60, 75, 90, 135, 145, 155], [0, 20, -45, -25, 45, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const jumpLegBL = interpolate(loopFrame, [60, 75, 90, 135, 145, 155], [0, -30, 50, 30, -10, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const jumpLegBR = interpolate(loopFrame, [60, 75, 90, 135, 145, 155], [0, -15, 65, 45, 0, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  /* ------------------------------------------------------------------------
-     CLOUD DRIFT VALUES — subtle horizontal oscillation, each with a unique
-     phase and frequency so the clouds never move in sync
-     ------------------------------------------------------------------------ */
-  const cloudADrift = Math.sin(progress * TAU * 1) * 45;
-  const cloudBDrift = Math.sin(progress * TAU * 1 + Math.PI / 3) * 60;
-  const cloudCDrift = Math.sin(progress * TAU * 1 + Math.PI * 1.15) * 38;
+  const legFL = loopFrame >= 60 && loopFrame <= 155 ? jumpLegFL : runSwingFL;
+  const legFR = loopFrame >= 60 && loopFrame <= 155 ? jumpLegFR : runSwingFR;
+  const legBL = loopFrame >= 60 && loopFrame <= 155 ? jumpLegBL : runSwingBL;
+  const legBR = loopFrame >= 60 && loopFrame <= 155 ? jumpLegBR : runSwingBR;
 
-  /* ------------------------------------------------------------------------
-     SUN ROTATION — one full 360 degree turn per loop (seamless)
-     ------------------------------------------------------------------------ */
-  const sunRotation = progress * 360;
+  const runTail = Math.sin((loopFrame / 15) * Math.PI * 2) * 20;
+  const jumpTail = interpolate(loopFrame, [60, 75, 105, 135, 150], [0, 40, -50, 20, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const tailBaseWag = (loopFrame >= 60 && loopFrame <= 150 ? jumpTail : runTail) - 10;
 
-  /* ------------------------------------------------------------------------
-     GEOMETRY CONSTANTS (viewBox space: 1920 x 1080)
-     ------------------------------------------------------------------------ */
-  const balloonCenterX = 960;
-  const balloonTopY = 180;
-  const balloonWideY = 460;
-  const balloonRadius = 260;
-  const neckHalfWidth = 90;
-  const neckY = 680;
-  const skirtY = 700;
-
-  const basketTopY = 780;
-  const basketBottomY = 900;
-  const basketTopHalfWidth = 110;
-  const basketBottomHalfWidth = 90;
-
-  // Attachment points along the skirt (top of ropes)
-  const ropeTopXs = [
-    balloonCenterX - neckHalfWidth,
-    balloonCenterX - neckHalfWidth / 3,
-    balloonCenterX + neckHalfWidth / 3,
-    balloonCenterX + neckHalfWidth,
-  ];
-
-  // Attachment points along the basket rim (bottom of ropes)
-  const ropeBottomXs = [
-    balloonCenterX - basketTopHalfWidth,
-    balloonCenterX - basketTopHalfWidth / 3,
-    balloonCenterX + basketTopHalfWidth / 3,
-    balloonCenterX + basketTopHalfWidth,
-  ];
-
-  // Balloon envelope outline path (rounded bulb / onion shape)
-  const balloonPath = `
-    M ${balloonCenterX} ${balloonTopY}
-    C ${balloonCenterX + 150} ${balloonTopY} ${balloonCenterX + balloonRadius} ${balloonTopY + 250} ${balloonCenterX + balloonRadius} ${balloonWideY}
-    C ${balloonCenterX + balloonRadius} ${balloonWideY + 140} ${balloonCenterX + neckHalfWidth + 60} ${neckY - 40} ${balloonCenterX + neckHalfWidth} ${neckY}
-    L ${balloonCenterX - neckHalfWidth} ${neckY}
-    C ${balloonCenterX - neckHalfWidth - 60} ${neckY - 40} ${balloonCenterX - balloonRadius} ${balloonWideY + 140} ${balloonCenterX - balloonRadius} ${balloonWideY}
-    C ${balloonCenterX - balloonRadius} ${balloonTopY + 250} ${balloonCenterX - 150} ${balloonTopY} ${balloonCenterX} ${balloonTopY}
-    Z
-  `;
-
-  // Seam lines (gore seams) — subtle curved strokes across the envelope
-  const seamOffsets = [-160, -80, 0, 80, 160];
-  const seams = seamOffsets.map((offset, i) => {
-    const topX = balloonCenterX + offset * 0.55;
-    const midX = balloonCenterX + offset;
-    const neckX =
-      balloonCenterX +
-      (offset / 160) * neckHalfWidth * 0.85;
-    return (
-      <path
-        key={`seam-${i}`}
-        d={`M ${topX} ${balloonTopY + 15}
-            C ${midX} ${balloonTopY + 150} ${midX} ${balloonWideY + 60} ${neckX} ${neckY - 8}`}
-        fill="none"
-        stroke={COLORS.balloonSeam}
-        strokeWidth={6}
-        strokeLinecap="round"
-        opacity={0.55}
-      />
-    );
+  const blinkSpring = spring({
+    frame: loopFrame % 80,
+    fps,
+    config: { damping: 10, mass: 0.3 },
   });
+  const eyeScaleY = interpolate(blinkSpring, [0, 0.15, 0.3, 1], [1, 0.05, 1, 1], { extrapolateRight: 'clamp' });
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      <svg
-        width={3840}
-        height={2160}
-        viewBox="0 0 1920 1080"
-        xmlns="http://www.w3.org/2000/svg"
+    <AbsoluteFill style={{ overflow: 'hidden' }}>
+      {/* 4K PERFECT CENTERING CONTAINER */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          // Skala diturunkan ke 2.0 agar karakter tidak terlalu besar dan aman dari batas layar saat melompat
+          transform: `translate(-50%, -50%) scale(2.0)`,
+          width: '950px', 
+          height: '900px', 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        <defs />
-
-        {/* ================= SUN ================= */}
-        <Sun x={260} y={230} rotationDeg={sunRotation} />
-
-        {/* ================= BACKGROUND CLOUDS ================= */}
-        <g name="clouds-back">
-          <Cloud x={1560 + cloudADrift} y={220} scale={1.15} />
-          <Cloud x={1640 + cloudCDrift} y={830} scale={0.95} />
-        </g>
-
-        {/* ================= HOT AIR BALLOON ASSEMBLY ================= */}
-        <g
-          name="balloon-assembly"
-          transform={`translate(0 ${verticalFloat})`}
+        {/* CHARACTER INNER ROOT */}
+        <div
+          style={{
+            position: 'absolute',
+            // Penyesuaian offset vertikal (+220px) agar karakter menapak pas di titik pusat simetris kanvas
+            transform: `translate3d(0, ${bodyY + 220}px, 0) rotate(${bodyTilt}deg)`,
+            width: '650px',
+            height: '450px',
+          }}
         >
-          {/* ----- Balloon envelope (rotates gently around its own center) ----- */}
-          <g
-            name="balloon-envelope-group"
-            transform={rotateAround(
-              balloonRotation,
-              balloonCenterX,
-              balloonWideY
-            )}
+          {/* ==========================================
+              1. RANGKA MEKANIKAL BELAKANG & KAKI (Latar)
+              ========================================== */}
+          {/* Kaki Belakang Kiri */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '130px',
+              top: '230px',
+              width: '50px',
+              height: '140px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '20px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              transformOrigin: 'top center',
+              transform: `rotate(${legBL}deg)`,
+            }}
           >
-            <path d={balloonPath} fill={COLORS.balloonBase} />
-            <g name="balloon-seams">{seams}</g>
-            <ellipse
-              name="balloon-cap"
-              cx={balloonCenterX}
-              cy={balloonTopY + 6}
-              rx={26}
-              ry={12}
-              fill={COLORS.balloonCap}
-            />
-            <ellipse
-              name="balloon-skirt"
-              cx={balloonCenterX}
-              cy={skirtY}
-              rx={neckHalfWidth + 6}
-              ry={16}
-              fill={COLORS.skirt}
-            />
-          </g>
+            <div style={{ position: 'absolute', bottom: '10px', left: '4px', width: '34px', height: '70px', backgroundColor: COLORS.plateDark, borderRadius: '10px', borderBottom: `8px solid ${COLORS.secondaryNeon}` }} />
+          </div>
 
-          {/* ----- Ropes + basket (swings like a pendulum from the skirt) ----- */}
-          <g
-            name="basket-rig-group"
-            transform={rotateAround(
-              basketSwing,
-              balloonCenterX,
-              skirtY
-            )}
+          {/* Kaki Depan Kiri */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '400px',
+              top: '230px',
+              width: '50px',
+              height: '140px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '20px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              transformOrigin: 'top center',
+              transform: `rotate(${legFL}deg)`,
+            }}
           >
-            <g name="suspension-ropes">
-              {ropeTopXs.map((topX, i) => (
-                <line
-                  key={`rope-${i}`}
-                  x1={topX}
-                  y1={skirtY}
-                  x2={ropeBottomXs[i]}
-                  y2={basketTopY}
-                  stroke={COLORS.rope}
-                  strokeWidth={6}
-                  strokeLinecap="round"
-                />
+            <div style={{ position: 'absolute', bottom: '10px', left: '4px', width: '34px', height: '70px', backgroundColor: COLORS.plateDark, borderRadius: '10px', borderBottom: `8px solid ${COLORS.primaryNeon}` }} />
+          </div>
+
+          {/* ==========================================
+              2. CYBER TAIL (Ekor Stabilizer)
+              ========================================== */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '25px',
+              top: '130px',
+              width: '70px',
+              height: '35px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '12px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              transformOrigin: 'right center',
+              transform: `rotate(${tailBaseWag}deg)`,
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: '-50px',
+                top: '-2px',
+                width: '55px',
+                height: '27px',
+                backgroundColor: COLORS.secondaryNeon,
+                borderRadius: '10px',
+                border: `3px solid ${COLORS.strokePremium}`,
+                transformOrigin: 'right center',
+                transform: `rotate(${tailBaseWag * 1.2}deg)`,
+                boxShadow: `0 0 15px ${COLORS.secondaryNeon}`,
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '-45px',
+                  top: '0px',
+                  width: '50px',
+                  height: '18px',
+                  backgroundColor: COLORS.primaryNeon,
+                  borderRadius: '9px',
+                  border: `3px solid ${COLORS.strokePremium}`,
+                  transformOrigin: 'right center',
+                  transform: `rotate(${tailBaseWag * 1.5}deg)`,
+                  boxShadow: `0 0 20px ${COLORS.primaryNeon}`,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* ==========================================
+              3. MECHA CHASSIS & SHIELD (Badan Utama)
+              ========================================== */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '80px',
+              top: '100px',
+              width: '380px',
+              height: '150px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '40px',
+              border: `4px solid ${COLORS.strokePremium}`,
+            }}
+          >
+            <div style={{ position: 'absolute', left: '40px', top: '35px', display: 'flex', gap: '6px' }}>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} style={{ width: '8px', height: '40px', backgroundColor: COLORS.accentCore, transform: 'skewX(-20deg)', borderRadius: '2px', opacity: 0.7 + Math.sin(frame * 0.15 + i) * 0.3 }} />
               ))}
-            </g>
+            </div>
+          </div>
 
-            <g name="basket">
-              <polygon
-                points={`
-                  ${balloonCenterX - basketTopHalfWidth},${basketTopY}
-                  ${balloonCenterX + basketTopHalfWidth},${basketTopY}
-                  ${balloonCenterX + basketBottomHalfWidth},${basketBottomY}
-                  ${balloonCenterX - basketBottomHalfWidth},${basketBottomY}
-                `}
-                fill={COLORS.basket}
-              />
-              {/* Basket weave detail lines */}
-              <line
-                x1={balloonCenterX - basketTopHalfWidth + 10}
-                y1={basketTopY + 30}
-                x2={balloonCenterX + basketTopHalfWidth - 10}
-                y2={basketTopY + 30}
-                stroke={COLORS.basketDark}
-                strokeWidth={5}
-                opacity={0.6}
-              />
-              <line
-                x1={balloonCenterX - basketTopHalfWidth + 18}
-                y1={basketTopY + 65}
-                x2={balloonCenterX + basketTopHalfWidth - 18}
-                y2={basketTopY + 65}
-                stroke={COLORS.basketDark}
-                strokeWidth={5}
-                opacity={0.6}
-              />
-              <rect
-                name="basket-rim"
-                x={balloonCenterX - basketTopHalfWidth - 4}
-                y={basketTopY - 10}
-                width={(basketTopHalfWidth + 4) * 2}
-                height={16}
-                rx={8}
-                fill={COLORS.basketDark}
-              />
-            </g>
-          </g>
-        </g>
+          {/* Armor Plate Luar Depan */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '110px',
+              top: '85px',
+              width: '330px',
+              height: '150px',
+              backgroundColor: COLORS.plateLight,
+              borderRadius: '40px 50px 20px 70px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              boxShadow: 'inset -15px -15px 0px rgba(0,0,0,0.05)',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', top: '0', right: '60px', width: '25px', height: '100%', backgroundColor: COLORS.secondaryNeon, transform: 'skewX(-30deg)', opacity: 0.8 }} />
+            <div style={{ position: 'absolute', top: '0', right: '95px', width: '8px', height: '100%', backgroundColor: COLORS.strokePremium, transform: 'skewX(-30deg)' }} />
 
-        {/* ================= FOREGROUND CLOUD ================= */}
-        <g name="clouds-front">
-          <Cloud x={260 + cloudBDrift} y={560} scale={1.3} />
-        </g>
-      </svg>
+            {/* Core Reaktor Neon */}
+            <div
+              style={{
+                position: 'absolute',
+                left: '40%',
+                top: '40%',
+                width: '45px',
+                height: '45px',
+                backgroundColor: COLORS.primaryNeon,
+                borderRadius: '12px',
+                transform: 'rotate(45deg)',
+                border: `4px solid ${COLORS.strokePremium}`,
+                boxShadow: `0 0 20px ${COLORS.primaryNeon}`,
+              }}
+            />
+          </div>
+
+          {/* ==========================================
+              4. ADVANCED MECHA HEAD (Kepala Kat-Bot)
+              ========================================== */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '390px',
+              top: '15px',
+              width: '200px',
+              height: '170px',
+            }}
+          >
+            <div style={{ position: 'absolute', top: '-20px', left: '20px', width: '45px', height: '60px', backgroundColor: COLORS.secondaryNeon, border: `4px solid ${COLORS.strokePremium}`, borderRadius: '10px 30px 0 0', transform: 'skewX(-10deg)' }} />
+            <div style={{ position: 'absolute', top: '-30px', right: '40px', width: '55px', height: '75px', backgroundColor: COLORS.plateLight, border: `4px solid ${COLORS.strokePremium}`, borderRadius: '35px 45px 0 0', boxShadow: 'inset -8px 0px 0px rgba(0,0,0,0.1)' }}>
+              <div style={{ position: 'absolute', top: '15px', right: '10px', width: '20px', height: '40px', backgroundColor: COLORS.accentCore, borderRadius: '20px' }} />
+            </div>
+
+            {/* Kepala Utama */}
+            <div
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                backgroundColor: COLORS.plateLight,
+                borderRadius: '40px 60px 40px 40px',
+                border: `4px solid ${COLORS.strokePremium}`,
+                boxShadow: 'inset -12px -12px 0px rgba(0,0,0,0.05)',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Visor Tactical LED */}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-10px',
+                  top: '35px',
+                  width: '130px',
+                  height: '50px',
+                  backgroundColor: COLORS.chassisDark,
+                  borderRadius: '20px 0 0 20px',
+                  border: `4px solid ${COLORS.strokePremium}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingLeft: '20px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '70px',
+                    height: '14px',
+                    backgroundColor: COLORS.primaryNeon,
+                    borderRadius: '4px',
+                    transform: `scaleY(${eyeScaleY})`,
+                    boxShadow: `0 0 15px ${COLORS.primaryNeon}`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ==========================================
+              5. RANGKA MEKANIKAL DEPAN & KAKI (Muka)
+              ========================================== */}
+          {/* Kaki Belakang Kanan */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '180px',
+              top: '220px',
+              width: '54px',
+              height: '150px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '25px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              transformOrigin: 'top center',
+              transform: `rotate(${legBR}deg)`,
+              boxShadow: '5px 10px 20px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ position: 'absolute', top: '20px', left: '3px', width: '40px', height: '95px', backgroundColor: COLORS.plateLight, borderRadius: '16px', border: `3px solid ${COLORS.strokePremium}` }}>
+              <div style={{ width: '18px', height: '18px', backgroundColor: COLORS.goldAccent, borderRadius: '50%', margin: '10px auto', border: `2px solid ${COLORS.strokePremium}` }} />
+            </div>
+          </div>
+
+          {/* Kaki Depan Kanan */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '450px',
+              top: '220px',
+              width: '54px',
+              height: '150px',
+              backgroundColor: COLORS.chassisDark,
+              borderRadius: '25px',
+              border: `4px solid ${COLORS.strokePremium}`,
+              transformOrigin: 'top center',
+              transform: `rotate(${legFR}deg)`,
+              boxShadow: '5px 10px 20px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ position: 'absolute', top: '20px', left: '3px', width: '40px', height: '95px', backgroundColor: COLORS.plateLight, borderRadius: '16px', border: `3px solid ${COLORS.strokePremium}` }}>
+              <div style={{ width: '18px', height: '18px', backgroundColor: COLORS.goldAccent, borderRadius: '50%', margin: '10px auto', border: `2px solid ${COLORS.strokePremium}` }} />
+            </div>
+          </div>
+
+        </div>
+      </div>
     </AbsoluteFill>
   );
 };
-
-export default Main;
