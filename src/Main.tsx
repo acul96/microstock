@@ -1,352 +1,319 @@
-// Main.tsx
+// src/Main.tsx
 import React from "react";
-import { useCurrentFrame } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 
-/* ============================================================
-   LOADING BAR WITH RUNNING CAT — Premium Minimal Flat Vector
-   4K (3840x2160) · 10s @ 30fps · Seamless Loop · Transparent BG
-   ============================================================ */
-
-// ---------- Color Palette ----------
+/* ==========================================================================
+   COLOR PALETTE — flat, premium, no gradients / shadows / filters
+   ========================================================================== */
 const COLORS = {
-  track: "#E8ECEF",
-  trackInner: "#D1D8DD",
-  progress: "#FF6B6B",
-  progressHighlight: "#FF8787",
-  catBody: "#FF8C42",
-  catLight: "#FFB380",
-  catDark: "#E67320",
-  catEarInner: "#FFB6C1",
-  eye: "#2C3E50",
-  nose: "#FF6B9D",
-  accent1: "#4ECDC4",
-  accent2: "#FFD93D",
-  accent3: "#A78BFA",
+  balloonBase: "#E8734A",
+  balloonSeam: "#C85A34",
+  balloonCap: "#C85A34",
+  skirt: "#3B3A36",
+  basket: "#8B5E3C",
+  basketDark: "#6E482D",
+  rope: "#5A5A52",
+  cloud: "#FFFFFF",
+  sunCore: "#F4B942",
+  sunRay: "#F4B942",
 };
 
-// ---------- Timing ----------
-const TOTAL_FRAMES = 300;
+/* ==========================================================================
+   HELPER — convert degrees to an SVG rotate() transform string
+   ========================================================================== */
+const rotateAround = (deg: number, cx: number, cy: number) =>
+  `rotate(${deg} ${cx} ${cy})`;
 
-// ---------- Floating Decorative Dot ----------
-type DotProps = {
+/* ==========================================================================
+   CLOUD COMPONENT — reusable flat cloud built from overlapping circles
+   ========================================================================== */
+type CloudProps = {
   x: number;
   y: number;
-  size: number;
-  color: string;
-  phase: number;
-  amplitude: number;
-  period: number;
+  scale: number;
 };
 
-const FloatingDot: React.FC<DotProps> = ({
-  x,
-  y,
-  size,
-  color,
-  phase,
-  amplitude,
-  period,
-}) => {
-  const frame = useCurrentFrame();
-  const offsetY = Math.sin(((frame + phase) / period) * Math.PI * 2) * amplitude;
-  const scale = 1 + Math.sin(((frame + phase) / period) * Math.PI * 2) * 0.1;
-
-  return (
-    <circle
-      cx={x}
-      cy={y + offsetY}
-      r={size * scale}
-      fill={color}
-      opacity={0.6}
-    />
-  );
-};
-
-// ---------- Running Cat ----------
-type CatProps = {
-  x: number;
-  y: number;
-  opacity: number;
-  frame: number;
-};
-
-const Cat: React.FC<CatProps> = ({ x, y, opacity, frame }) => {
-  // Running bounce (fast cycle)
-  const bounceY = Math.sin((frame / 8) * Math.PI * 2) * 18;
-
-  // Leg animations (4 legs with phase offsets)
-  const legPhase = (frame / 8) * Math.PI * 2;
-  const leg1 = Math.sin(legPhase) * 25;
-  const leg2 = Math.sin(legPhase + Math.PI) * 25;
-  const leg3 = Math.sin(legPhase + Math.PI / 2) * 25;
-  const leg4 = Math.sin(legPhase + (3 * Math.PI) / 2) * 25;
-
-  // Tail wag
-  const tailWag = Math.sin((frame / 12) * Math.PI * 2) * 20;
-
-  // Head bob
-  const headBob = Math.sin((frame / 8) * Math.PI * 2) * 6;
-
+const Cloud: React.FC<CloudProps> = ({ x, y, scale }) => {
   return (
     <g
-      transform={`translate(${x}, ${y + bounceY})`}
-      opacity={opacity}
+      name="cloud"
+      transform={`translate(${x} ${y}) scale(${scale})`}
     >
-      {/* === TAIL === */}
-      <path
-        d={`M -110,-20 Q ${-140 + tailWag},-60 ${-160 + tailWag},-90`}
-        stroke={COLORS.catBody}
-        strokeWidth={24}
+      <ellipse cx={0} cy={0} rx={70} ry={34} fill={COLORS.cloud} />
+      <circle cx={-45} cy={-6} r={30} fill={COLORS.cloud} />
+      <circle cx={-10} cy={-22} r={38} fill={COLORS.cloud} />
+      <circle cx={38} cy={-8} r={28} fill={COLORS.cloud} />
+      <circle cx={62} cy={4} r={20} fill={COLORS.cloud} />
+    </g>
+  );
+};
+
+/* ==========================================================================
+   SUN COMPONENT — flat circle core with rotating rays
+   ========================================================================== */
+type SunProps = {
+  x: number;
+  y: number;
+  rotationDeg: number;
+};
+
+const Sun: React.FC<SunProps> = ({ x, y, rotationDeg }) => {
+  const rayCount = 10;
+  const rays = Array.from({ length: rayCount }, (_, i) => {
+    const angle = (360 / rayCount) * i;
+    return (
+      <line
+        key={`ray-${i}`}
+        x1={0}
+        y1={-95}
+        x2={0}
+        y2={-125}
+        stroke={COLORS.sunRay}
+        strokeWidth={10}
         strokeLinecap="round"
-        fill="none"
+        transform={`rotate(${angle} 0 0)`}
       />
+    );
+  });
 
-      {/* === BACK LEGS === */}
-      <rect
-        x={-70}
-        y={50 + leg3}
-        width={22}
-        height={65}
-        rx={11}
-        fill={COLORS.catDark}
-      />
-      <rect
-        x={-40}
-        y={50 + leg4}
-        width={22}
-        height={65}
-        rx={11}
-        fill={COLORS.catDark}
-      />
-
-      {/* === BODY === */}
-      <ellipse cx={0} cy={0} rx={130} ry={75} fill={COLORS.catBody} />
-
-      {/* Body highlight */}
-      <ellipse
-        cx={-20}
-        cy={-20}
-        rx={80}
-        ry={40}
-        fill={COLORS.catLight}
-        opacity={0.5}
-      />
-
-      {/* === FRONT LEGS === */}
-      <rect
-        x={50}
-        y={50 + leg1}
-        width={22}
-        height={65}
-        rx={11}
-        fill={COLORS.catDark}
-      />
-      <rect
-        x={80}
-        y={50 + leg2}
-        width={22}
-        height={65}
-        rx={11}
-        fill={COLORS.catDark}
-      />
-
-      {/* === HEAD === */}
-      <g transform={`translate(110, ${-30 + headBob})`}>
-        {/* Head base */}
-        <circle cx={0} cy={0} r={65} fill={COLORS.catBody} />
-
-        {/* Left ear */}
-        <polygon points="-45,-50 -60,-95 -20,-65" fill={COLORS.catBody} />
-        <polygon points="-42,-55 -55,-85 -25,-65" fill={COLORS.catEarInner} />
-
-        {/* Right ear */}
-        <polygon points="45,-50 60,-95 20,-65" fill={COLORS.catBody} />
-        <polygon points="42,-55 55,-85 25,-65" fill={COLORS.catEarInner} />
-
-        {/* Eyes */}
-        <circle cx={-20} cy={-10} r={8} fill={COLORS.eye} />
-        <circle cx={20} cy={-10} r={8} fill={COLORS.eye} />
-        <circle cx={-17} cy={-13} r={3} fill="#FFFFFF" />
-        <circle cx={23} cy={-13} r={3} fill="#FFFFFF" />
-
-        {/* Nose */}
-        <ellipse cx={0} cy={10} rx={8} ry={6} fill={COLORS.nose} />
-
-        {/* Mouth */}
-        <path
-          d="M 0,16 Q -8,22 -12,20"
-          stroke={COLORS.eye}
-          strokeWidth={2}
-          strokeLinecap="round"
-          fill="none"
-        />
-        <path
-          d="M 0,16 Q 8,22 12,20"
-          stroke={COLORS.eye}
-          strokeWidth={2}
-          strokeLinecap="round"
-          fill="none"
-        />
-
-        {/* Cheek blush */}
-        <circle cx={-35} cy={5} r={10} fill={COLORS.catEarInner} opacity={0.4} />
-        <circle cx={35} cy={5} r={10} fill={COLORS.catEarInner} opacity={0.4} />
+  return (
+    <g name="sun" transform={`translate(${x} ${y})`}>
+      <g name="sun-rays" transform={rotateAround(rotationDeg, 0, 0)}>
+        {rays}
       </g>
+      <circle name="sun-core" cx={0} cy={0} r={78} fill={COLORS.sunCore} />
     </g>
   );
 };
 
-// ---------- Loading Bar ----------
-type LoadingBarProps = {
-  progress: number;
-};
-
-const LoadingBar: React.FC<LoadingBarProps> = ({ progress }) => {
-  const barX = 400;
-  const barY = 1040;
-  const barWidth = 3040;
-  const barHeight = 80;
-  const progressWidth = progress * barWidth;
-
-  return (
-    <g>
-      {/* Track background */}
-      <rect
-        x={barX}
-        y={barY}
-        width={barWidth}
-        height={barHeight}
-        rx={40}
-        fill={COLORS.track}
-      />
-
-      {/* Track inner shadow (subtle depth) */}
-      <rect
-        x={barX + 10}
-        y={barY + 10}
-        width={barWidth - 20}
-        height={barHeight - 20}
-        rx={30}
-        fill={COLORS.trackInner}
-        opacity={0.3}
-      />
-
-      {/* Progress fill */}
-      <rect
-        x={barX}
-        y={barY}
-        width={progressWidth}
-        height={barHeight}
-        rx={40}
-        fill={COLORS.progress}
-      />
-
-      {/* Progress highlight (top edge) */}
-      <rect
-        x={barX + 20}
-        y={barY + 15}
-        width={Math.max(0, progressWidth - 40)}
-        height={20}
-        rx={10}
-        fill={COLORS.progressHighlight}
-        opacity={0.6}
-      />
-
-      {/* Progress markers (decorative dots) */}
-      {progress > 0.1 && (
-        <g>
-          <circle
-            cx={barX + progressWidth - 40}
-            cy={barY + barHeight / 2}
-            r={12}
-            fill="#FFFFFF"
-            opacity={0.8}
-          />
-          <circle
-            cx={barX + progressWidth - 40}
-            cy={barY + barHeight / 2}
-            r={6}
-            fill={COLORS.progress}
-          />
-        </g>
-      )}
-    </g>
-  );
-};
-
-// ---------- Main Composition ----------
-const Main: React.FC = () => {
+/* ==========================================================================
+   MAIN COMPONENT
+   ========================================================================== */
+export const Main: React.FC = () => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
 
-  // Progress animation (0 to 1)
-  const progress = frame / TOTAL_FRAMES;
+  // Normalized progress through the loop, 0 -> 1
+  const progress = frame / durationInFrames;
+  const TAU = Math.PI * 2;
 
-  // Cat position (follows progress)
-  const catStartX = 500;
-  const catEndX = 3340;
-  const catX = catStartX + progress * (catEndX - catStartX);
-  const catY = 900;
+  /* ------------------------------------------------------------------------
+     BALLOON + BASKET ANIMATION VALUES (all integer-cycle, seamless loop)
+     ------------------------------------------------------------------------ */
 
-  // Cat opacity (fade in/out for seamless loop)
-  let catOpacity = 1;
-  if (frame < 20) {
-    catOpacity = frame / 20;
-  } else if (frame > 280) {
-    catOpacity = (300 - frame) / 20;
-  }
+  // Whole assembly gently floats up and down — 1 full cycle over the loop
+  const verticalFloat = Math.sin(progress * TAU * 1) * 22;
+
+  // Balloon envelope subtly wobbles/rotates around its own center
+  const balloonRotation = Math.sin(progress * TAU * 1 + Math.PI / 6) * 1.6;
+
+  // Basket swings like a pendulum, slightly faster than the balloon float,
+  // with a phase offset so the motion feels organic rather than mechanical
+  const basketSwing = Math.sin(progress * TAU * 2 + Math.PI / 4) * 2.8;
+
+  /* ------------------------------------------------------------------------
+     CLOUD DRIFT VALUES — subtle horizontal oscillation, each with a unique
+     phase and frequency so the clouds never move in sync
+     ------------------------------------------------------------------------ */
+  const cloudADrift = Math.sin(progress * TAU * 1) * 45;
+  const cloudBDrift = Math.sin(progress * TAU * 1 + Math.PI / 3) * 60;
+  const cloudCDrift = Math.sin(progress * TAU * 1 + Math.PI * 1.15) * 38;
+
+  /* ------------------------------------------------------------------------
+     SUN ROTATION — one full 360 degree turn per loop (seamless)
+     ------------------------------------------------------------------------ */
+  const sunRotation = progress * 360;
+
+  /* ------------------------------------------------------------------------
+     GEOMETRY CONSTANTS (viewBox space: 1920 x 1080)
+     ------------------------------------------------------------------------ */
+  const balloonCenterX = 960;
+  const balloonTopY = 180;
+  const balloonWideY = 460;
+  const balloonRadius = 260;
+  const neckHalfWidth = 90;
+  const neckY = 680;
+  const skirtY = 700;
+
+  const basketTopY = 780;
+  const basketBottomY = 900;
+  const basketTopHalfWidth = 110;
+  const basketBottomHalfWidth = 90;
+
+  // Attachment points along the skirt (top of ropes)
+  const ropeTopXs = [
+    balloonCenterX - neckHalfWidth,
+    balloonCenterX - neckHalfWidth / 3,
+    balloonCenterX + neckHalfWidth / 3,
+    balloonCenterX + neckHalfWidth,
+  ];
+
+  // Attachment points along the basket rim (bottom of ropes)
+  const ropeBottomXs = [
+    balloonCenterX - basketTopHalfWidth,
+    balloonCenterX - basketTopHalfWidth / 3,
+    balloonCenterX + basketTopHalfWidth / 3,
+    balloonCenterX + basketTopHalfWidth,
+  ];
+
+  // Balloon envelope outline path (rounded bulb / onion shape)
+  const balloonPath = `
+    M ${balloonCenterX} ${balloonTopY}
+    C ${balloonCenterX + 150} ${balloonTopY} ${balloonCenterX + balloonRadius} ${balloonTopY + 250} ${balloonCenterX + balloonRadius} ${balloonWideY}
+    C ${balloonCenterX + balloonRadius} ${balloonWideY + 140} ${balloonCenterX + neckHalfWidth + 60} ${neckY - 40} ${balloonCenterX + neckHalfWidth} ${neckY}
+    L ${balloonCenterX - neckHalfWidth} ${neckY}
+    C ${balloonCenterX - neckHalfWidth - 60} ${neckY - 40} ${balloonCenterX - balloonRadius} ${balloonWideY + 140} ${balloonCenterX - balloonRadius} ${balloonWideY}
+    C ${balloonCenterX - balloonRadius} ${balloonTopY + 250} ${balloonCenterX - 150} ${balloonTopY} ${balloonCenterX} ${balloonTopY}
+    Z
+  `;
+
+  // Seam lines (gore seams) — subtle curved strokes across the envelope
+  const seamOffsets = [-160, -80, 0, 80, 160];
+  const seams = seamOffsets.map((offset, i) => {
+    const topX = balloonCenterX + offset * 0.55;
+    const midX = balloonCenterX + offset;
+    const neckX =
+      balloonCenterX +
+      (offset / 160) * neckHalfWidth * 0.85;
+    return (
+      <path
+        key={`seam-${i}`}
+        d={`M ${topX} ${balloonTopY + 15}
+            C ${midX} ${balloonTopY + 150} ${midX} ${balloonWideY + 60} ${neckX} ${neckY - 8}`}
+        fill="none"
+        stroke={COLORS.balloonSeam}
+        strokeWidth={6}
+        strokeLinecap="round"
+        opacity={0.55}
+      />
+    );
+  });
 
   return (
-    <svg
-      width={3840}
-      height={2160}
-      viewBox="0 0 3840 2160"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ background: "transparent" }}
-    >
-      {/* === DECORATIVE FLOATING DOTS === */}
-      <FloatingDot
-        x={600}
-        y={400}
-        size={40}
-        color={COLORS.accent1}
-        phase={0}
-        amplitude={30}
-        period={180}
-      />
-      <FloatingDot
-        x={3200}
-        y={500}
-        size={35}
-        color={COLORS.accent2}
-        phase={60}
-        amplitude={25}
-        period={200}
-      />
-      <FloatingDot
-        x={800}
-        y={1700}
-        size={30}
-        color={COLORS.accent3}
-        phase={120}
-        amplitude={35}
-        period={160}
-      />
-      <FloatingDot
-        x={3000}
-        y={1600}
-        size={45}
-        color={COLORS.accent1}
-        phase={180}
-        amplitude={28}
-        period={220}
-      />
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      <svg
+        width={3840}
+        height={2160}
+        viewBox="0 0 1920 1080"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs />
 
-      {/* === LOADING BAR === */}
-      <LoadingBar progress={progress} />
+        {/* ================= SUN ================= */}
+        <Sun x={260} y={230} rotationDeg={sunRotation} />
 
-      {/* === RUNNING CAT === */}
-      <Cat x={catX} y={catY} opacity={catOpacity} frame={frame} />
-    </svg>
+        {/* ================= BACKGROUND CLOUDS ================= */}
+        <g name="clouds-back">
+          <Cloud x={1560 + cloudADrift} y={220} scale={1.15} />
+          <Cloud x={1640 + cloudCDrift} y={830} scale={0.95} />
+        </g>
+
+        {/* ================= HOT AIR BALLOON ASSEMBLY ================= */}
+        <g
+          name="balloon-assembly"
+          transform={`translate(0 ${verticalFloat})`}
+        >
+          {/* ----- Balloon envelope (rotates gently around its own center) ----- */}
+          <g
+            name="balloon-envelope-group"
+            transform={rotateAround(
+              balloonRotation,
+              balloonCenterX,
+              balloonWideY
+            )}
+          >
+            <path d={balloonPath} fill={COLORS.balloonBase} />
+            <g name="balloon-seams">{seams}</g>
+            <ellipse
+              name="balloon-cap"
+              cx={balloonCenterX}
+              cy={balloonTopY + 6}
+              rx={26}
+              ry={12}
+              fill={COLORS.balloonCap}
+            />
+            <ellipse
+              name="balloon-skirt"
+              cx={balloonCenterX}
+              cy={skirtY}
+              rx={neckHalfWidth + 6}
+              ry={16}
+              fill={COLORS.skirt}
+            />
+          </g>
+
+          {/* ----- Ropes + basket (swings like a pendulum from the skirt) ----- */}
+          <g
+            name="basket-rig-group"
+            transform={rotateAround(
+              basketSwing,
+              balloonCenterX,
+              skirtY
+            )}
+          >
+            <g name="suspension-ropes">
+              {ropeTopXs.map((topX, i) => (
+                <line
+                  key={`rope-${i}`}
+                  x1={topX}
+                  y1={skirtY}
+                  x2={ropeBottomXs[i]}
+                  y2={basketTopY}
+                  stroke={COLORS.rope}
+                  strokeWidth={6}
+                  strokeLinecap="round"
+                />
+              ))}
+            </g>
+
+            <g name="basket">
+              <polygon
+                points={`
+                  ${balloonCenterX - basketTopHalfWidth},${basketTopY}
+                  ${balloonCenterX + basketTopHalfWidth},${basketTopY}
+                  ${balloonCenterX + basketBottomHalfWidth},${basketBottomY}
+                  ${balloonCenterX - basketBottomHalfWidth},${basketBottomY}
+                `}
+                fill={COLORS.basket}
+              />
+              {/* Basket weave detail lines */}
+              <line
+                x1={balloonCenterX - basketTopHalfWidth + 10}
+                y1={basketTopY + 30}
+                x2={balloonCenterX + basketTopHalfWidth - 10}
+                y2={basketTopY + 30}
+                stroke={COLORS.basketDark}
+                strokeWidth={5}
+                opacity={0.6}
+              />
+              <line
+                x1={balloonCenterX - basketTopHalfWidth + 18}
+                y1={basketTopY + 65}
+                x2={balloonCenterX + basketTopHalfWidth - 18}
+                y2={basketTopY + 65}
+                stroke={COLORS.basketDark}
+                strokeWidth={5}
+                opacity={0.6}
+              />
+              <rect
+                name="basket-rim"
+                x={balloonCenterX - basketTopHalfWidth - 4}
+                y={basketTopY - 10}
+                width={(basketTopHalfWidth + 4) * 2}
+                height={16}
+                rx={8}
+                fill={COLORS.basketDark}
+              />
+            </g>
+          </g>
+        </g>
+
+        {/* ================= FOREGROUND CLOUD ================= */}
+        <g name="clouds-front">
+          <Cloud x={260 + cloudBDrift} y={560} scale={1.3} />
+        </g>
+      </svg>
+    </AbsoluteFill>
   );
 };
 
