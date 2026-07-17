@@ -1,0 +1,33 @@
+name: Render Video Microstock
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil Kode
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instal Dependensi & Chrome
+        run: |
+          npm install
+          npx remotion browser ensure
+
+      - name: Proses Render Video 4K
+        run: |
+          npx remotion render HelloWorld out/video-microstock.mp4 --codec=h264 --audio=false
+
+      - name: Simpan Hasil Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-siap-jual
+          path: out/video-microstock.mp4
