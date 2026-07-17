@@ -1,76 +1,65 @@
-import { zColor } from "@remotion/zod-types";
-import {
-  AbsoluteFill,
-  interpolate,
-  Sequence,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
-import { z } from "zod";
-import { Logo } from "./HelloWorld/Logo";
-import { Subtitle } from "./HelloWorld/Subtitle";
-import { Title } from "./HelloWorld/Title";
+import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import React from "react";
 
-export const myCompSchema = z.object({
-  titleText: z.string(),
-  titleColor: zColor(),
-  logoColor1: zColor(),
-  logoColor2: zColor(),
-});
-
-export const HelloWorld: React.FC<z.infer<typeof myCompSchema>> = ({
-  titleText: propOne,
-  titleColor: propTwo,
-  logoColor1,
-  logoColor2,
-}) => {
+export const HelloWorld: React.FC = () => {
   const frame = useCurrentFrame();
-  const { durationInFrames, fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
 
-  // Animate from 0 to 1 after 25 frames
-  const logoTranslationProgress = spring({
-    frame: frame - 25,
-    fps,
-    config: {
-      damping: 100,
-    },
-  });
+  // Membagi layar menjadi grid 4x3 lingkaran
+  const rows = 3;
+  const cols = 4;
+  const items = Array.from({ length: rows * cols });
 
-  // Move the logo up by 150 pixels once the transition starts
-  const logoTranslation = interpolate(
-    logoTranslationProgress,
-    [0, 1],
-    [0, -150],
-  );
-
-  // Fade out the animation at the end
-  const opacity = interpolate(
-    frame,
-    [durationInFrames - 25, durationInFrames - 15],
-    [1, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
-
-  // A <AbsoluteFill> is just a absolutely positioned <div>!
   return (
-    <AbsoluteFill style={{ backgroundColor: "white" }}>
-      <AbsoluteFill style={{ opacity }}>
-        <AbsoluteFill style={{ transform: `translateY(${logoTranslation}px)` }}>
-          <Logo logoColor1={logoColor1} logoColor2={logoColor2} />
-        </AbsoluteFill>
-        {/* Sequences can shift the time for its children! */}
-        <Sequence from={35}>
-          <Title titleText={propOne} titleColor={propTwo} />
-        </Sequence>
-        {/* The subtitle will only enter on the 75th frame. */}
-        <Sequence from={75}>
-          <Subtitle />
-        </Sequence>
-      </AbsoluteFill>
-    </AbsoluteFill>
+    <div
+      style={{
+        flex: 1,
+        backgroundColor: "#0d0e15", // Warna background gelap estetik
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gridTemplateRows: `repeat(${rows}, 1fr)`,
+        padding: 100,
+        boxSizing: "border-box",
+        width,
+        height,
+      }}
+    >
+      {items.map((_, index) => {
+        // Efek animasi bergelombang (delay antar lingkaran berdasarkan posisinya)
+        const delay = (index % cols) * 5 + Math.floor(index / cols) * 8;
+        
+        // Membuat animasi membesar-mengecil yang smooth menggunakan fungsi matematika Sinus
+        const scale = interpolate(
+          Math.sin((frame - delay) * 0.07),
+          [-1, 1],
+          [0.3, 1.2]
+        );
+
+        // Perubahan warna gradasi neon yang dinamis
+        const hue = (index * 15 + frame * 0.5) % 360;
+
+        return (
+          <div
+            key={index}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 250,
+                height: 250,
+                borderRadius: "50%",
+                background: `linear-gradient(135deg, hsl(${hue}, 80%, 60%), hsl(${(hue + 60) % 360}, 80%, 40%))`,
+                transform: `scale(${scale})`,
+                boxShadow: `0 0 50px rgba(0,0,0,0.5)`,
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 };
